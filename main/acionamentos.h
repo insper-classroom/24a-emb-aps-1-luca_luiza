@@ -15,13 +15,6 @@ extern const int LED_B;
 extern const int LED_G;
 extern const int LED_R;
 
-// Declaração das variáveis globais (valores serão definidos em acionamentos.c)
-extern volatile int PRESSED_B;
-extern volatile int PRESSED_G;
-extern volatile int PRESSED_R;
-extern volatile int PRESSED_Y;
-extern volatile int PRESSED_START;
-
 void buzz(char cor, int tempo, int BUZZER);
 void pisca_led(char cor, int t_delay, int LED_AZUL, int LED_VERMELHO, int LED_VERDE, int BUZZER);
 

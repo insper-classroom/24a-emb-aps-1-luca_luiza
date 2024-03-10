@@ -13,7 +13,6 @@ volatile int PRESSED_Y = 0;
 volatile char PRESSED_COLOR = 'S';
 volatile int PRESSED_START = 0;
 
-
 // Callbacks dos botões
 #define DEBOUNCE_MS 200 // Atraso de debounce de 200 milissegundos
 
