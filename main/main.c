@@ -3,78 +3,57 @@
 #include "hardware/gpio.h"
 #include "acionamentos.h"
 #include "game_features.h"
+#include "musicas.h"
 
-// Pinos dos botões e LEDs
-const int BTN_B = 13;
-const int BTN_G = 14;
-const int BTN_R = 15;
-const int BTN_Y = 16;
-const int BTN_START = 17;
-
-const int BUZZER = 18;
-
-const int LED_B = 6;
-const int LED_G = 7;
-const int LED_R = 8;
-
-
-// Flags para os botões
-volatile bool PRESSED_B = false;
-volatile bool PRESSED_G = false;
-volatile bool PRESSED_R = false;
-volatile bool PRESSED_Y = false;
+// Definição das variáveis globais
+volatile int PRESSED_B = 0;
+volatile int PRESSED_G = 0;
+volatile int PRESSED_R = 0;
+volatile int PRESSED_Y = 0;
+volatile char PRESSED_COLOR = 'S';
 volatile int PRESSED_START = 0;
 
-// Mostra a sequência de cores e define qual vai ser a sequência da rodada
-void mostrarSequencia(char* sequencia, int rodada, char* sequenciaRodada, int t_delay, int BUZZER, int LED_VERMELHO, int LED_VERDE, int LED_AZUL) {
-    char cor;
+// Callbacks dos botões
+#define DEBOUNCE_MS 200 // Atraso de debounce de 200 milissegundos
 
-    for (int i = 0; i < rodada; i++) {
-        cor = sequencia[i];
-
-        //Adiciona a cor na sequencia da rodada
-        sequenciaRodada[i] = cor;
-
-        mostraCor(cor, BUZZER, LED_VERMELHO, LED_VERDE, LED_AZUL, t_delay);
-    }
-    sequenciaRodada[rodada] = '\0';
-}
-
+// Variável para armazenar a última vez que um botão foi pressionado
+uint64_t last_press_time = 0;
 
 // Callbacks dos botões
-void btn_callback_b(uint gpio, uint32_t events) {
-    if (events == 0x4) { // fall edge
-        PRESSED_B = true;
+void btn_callback(uint gpio, uint32_t events) {
+    uint64_t now = to_us_since_boot(get_absolute_time());
+    if (events == 0x4 && (now - last_press_time > DEBOUNCE_MS * 1000)) { // fall edge e debounce
+        last_press_time = now;
+        if (gpio == BTN_B){
+            // printf("Pressed B \n"); //DEBUG
+            PRESSED_B = 1;
+            PRESSED_COLOR = 'B';
+        }
+        if (gpio == BTN_G){
+            // printf("Pressed G \n"); // DEBUG
+            PRESSED_G = 1;
+            PRESSED_COLOR = 'G';
+        }
+        if (gpio == BTN_R){
+            // printf("Pressed R \n"); // DEBUG
+            PRESSED_R = 1;
+            PRESSED_COLOR = 'R';
+        }
+        if (gpio == BTN_Y){
+            // printf("Pressed Y \n"); // DEBUG
+            PRESSED_Y = 1;
+            PRESSED_COLOR = 'Y';
+        }
+        if (gpio == BTN_START){
+            // printf("Pressed START \n");
+            PRESSED_START = 1;
+        }
+        // printf("PRESSED COLOR = %c\n", PRESSED_COLOR); //DEBUG
     }
 }
-
-void btn_callback_g(uint gpio, uint32_t events) {
-    if (events == 0x4) { // fall edge
-        PRESSED_G = true;
-    }
-}
-
-void btn_callback_r(uint gpio, uint32_t events) {
-    if (events == 0x4) { // fall edge
-        PRESSED_R = true;
-    }
-}
-
-void btn_callback_y(uint gpio, uint32_t events) {
-    if (events == 0x4) { // fall edge
-        PRESSED_Y = true;
-    }
-}
-
-void btn_callback_start(uint gpio, uint32_t events) {
-    if (events == 0x4) { // fall edge
-        PRESSED_START = 1;
-    }
-}
-
 
 int main() {
-    //Inicializa perifericos ____________________________________________________________________________________________________
+    //Inicializa perifericos __________________________________
 
     // Inicializa os botões
     // Botão B
@@ -99,11 +78,11 @@ int main() {
     gpio_pull_up(BTN_START);
 
     // Configura os callbacks dos botões
-    gpio_set_irq_enabled_with_callback(BTN_B, GPIO_IRQ_EDGE_FALL, true, &btn_callback_b);
-    gpio_set_irq_enabled_with_callback(BTN_G, GPIO_IRQ_EDGE_FALL, true, &btn_callback_g);
-    gpio_set_irq_enabled_with_callback(BTN_R, GPIO_IRQ_EDGE_FALL, true, &btn_callback_r);
-    gpio_set_irq_enabled_with_callback(BTN_Y, GPIO_IRQ_EDGE_FALL, true, &btn_callback_y);
-    gpio_set_irq_enabled_with_callback(BTN_START, GPIO_IRQ_EDGE_FALL, true, &btn_callback_start);
+    gpio_set_irq_enabled_with_callback(BTN_B, GPIO_IRQ_EDGE_FALL, true, &btn_callback);
+    gpio_set_irq_enabled(BTN_G, GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(BTN_R, GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(BTN_Y, GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(BTN_START, GPIO_IRQ_EDGE_FALL, true);
 
     // Inicializa o buzzer
     gpio_init(BUZZER);
@@ -122,68 +101,71 @@ int main() {
 
     stdio_init_all();
 
-    while (true) {
-        //Define Parâmetros iniciais do jogo ____________________________________________________________________________________________________
-        int rodada = 0; //rodada
 
-        PRESSED_START = 0; //Reseta o botão de start
+    int loopJogo = 1;
+    while (loopJogo) {
+        //Intro do jogo
+        while(!PRESSED_START){
+            pisca_led('S', 200, LED_B, LED_R, LED_G, BUZZER);
+        }
+        //Desliga LEDs acesos
+        gpio_put(LED_R, 0);
+        gpio_put(LED_B, 0);
+        playIntro(BUZZER, LED_R, LED_B);
+
+
+        uint64_t tempo_inicial = to_us_since_boot(get_absolute_time());  //Tempo inicial do jogo --> Seed para a geração de números aleatórios
+
+        //Define Parâmetros iniciais do jogo __________________________________
+        int rodada = 0; //rodada inicial
 
         int tamanho_sequencia = 100000; //tamanho da sequência (grande o suficiente para nenhum ser humano conseguir ganhar o jogo)
         char sequencia[tamanho_sequencia + 1]; // Definindo a lista com a sequencia de cores (+1 para o caractere nulo)
-
-        uint64_t tempo_inicial = time_us_64(); //Tempo inicial do jogo --> Seed para a geração de números aleatórios
         geraSequencia(sequencia, tamanho_sequencia, tempo_inicial); //Gera a sequência de cores aleatórias
 
         int inGame = 1; //Flag para começar o jogo
 
         while (inGame) {
-            if (PRESSED_START) { //So começa o jogo quando o botão de start é pressionado
-                char sequenciaRodada[rodada]; //A sequencia da rodada é a sequencia até a rodada atual
-                char sequenciaJogador[rodada+1]; //A sequencia do jogador é a sequencia até a rodada atual
-                sequenciaJogador[rodada] = '\0'; //Adiciona o caractere nulo no final da sequencia do jogador
+            if (PRESSED_START) {
+                rodada++;// Aumenta a rodada apenas se todas as cores corretas forem pressionadas
+                char sequenciaRodada[rodada];
+                int t_delay = calcularTempo(rodada);
+                mostrarSequencia(sequencia, rodada, sequenciaRodada, t_delay, BUZZER, LED_R, LED_G, LED_B);
 
-                int t_delay = calcularTempo(rodada); //Calcula o tempo de delay para mostrar a sequencia
-
-                mostrarSequencia(sequencia, rodada, sequenciaRodada, t_delay, BUZZER, LED_R, LED_G, LED_B); //O tamanho da sequencia é a rodada, de forma que a sequencia é mostrada até a rodada atual
-
-                //Aguarda o jogador apertar as cores
                 for (int i = 0; i < rodada; i++) {
                     char cor = sequenciaRodada[i];
-                    while (true) {
-                        if (PRESSED_B && cor == 'B') {
-                            sequenciaJogador[i] = 'B';
-                            PRESSED_B = false;
-                            break;
-                        }
-                        if (PRESSED_G && cor == 'G') {
-                            sequenciaJogador[i] = 'G';
-                            PRESSED_G = false;
-                            break;
-                        }
-                        if (PRESSED_R && cor == 'R') {
-                            sequenciaJogador[i] = 'R';
-                            PRESSED_R = false;
-                            break;
-                        }
-                        if (PRESSED_Y && cor == 'Y') {
-                            sequenciaJogador[i] = 'Y';
-                            PRESSED_Y = false;
-                            break;
-                        }
-                        else {
-                            inGame = 0; //Se o jogador errar a sequencia, o jogo acaba
-                        }
+
+                    while (!PRESSED_B && !PRESSED_G && !PRESSED_R && !PRESSED_Y) {
+                        //Espera o jogador pressionar uma cor
                     }
-                }        
-                rodada++; //Aumenta a rodada
+                    char cor_press = PRESSED_COLOR;
+                    pisca_led(cor_press, 200, LED_B, LED_R, LED_G, BUZZER); //Pisca a cor pressionada
+
+                    if (cor_press == cor) {
+                    }
+                    else if (PRESSED_COLOR != cor && PRESSED_COLOR != 'S') {
+                        inGame = 0; // Sai do loop
+                        i = rodada; // Sai do loop
+                    }
+                    // Reseta as flags para a próxima iteração
+                    PRESSED_B = 0;
+                    PRESSED_G = 0;
+                    PRESSED_R = 0;
+                    PRESSED_Y = 0;
+                    PRESSED_COLOR = 'S';
+                            
+                }
             }
-
-
+            
         }
 
         //Fim de jogo
         printf("Fim de jogo! Você chegou até a rodada %d", rodada);
-        mostraAcertos(rodada);
-        return 0;
+        mostrarAcertos(rodada-1, BUZZER, LED_R, LED_G, LED_B);
+        sleep_ms(2000);
+        PRESSED_START = 0; //Reseta o botão de start
+
     }
+    return 0;
+
 }
