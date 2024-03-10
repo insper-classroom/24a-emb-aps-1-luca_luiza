@@ -145,6 +145,7 @@ int main() {
                     else if (PRESSED_COLOR != cor && PRESSED_COLOR != 'S') {
                         inGame = 0; // Sai do loop
                         i = rodada; // Sai do loop
+                        loopJogo = 0;
                     }
                     // Reseta as flags para a próxima iteração
                     PRESSED_B = 0;
