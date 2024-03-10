@@ -12,7 +12,7 @@ volatile int PRESSED_R = 0;
 volatile int PRESSED_Y = 0;
 volatile char PRESSED_COLOR = 'S';
 volatile int PRESSED_START = 0;
-volatile int loopJogo = 1;
+
 
 // Callbacks dos botões
 #define DEBOUNCE_MS 200 // Atraso de debounce de 200 milissegundos
@@ -102,7 +102,7 @@ int main() {
 
     stdio_init_all();
 
-    loopJogo = 1;
+    int loopJogo = 1;
     while (loopJogo) {
         //Intro do jogo
         while(!PRESSED_START){
