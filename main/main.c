@@ -17,7 +17,7 @@ volatile int PRESSED_START = 0;
 #define DEBOUNCE_MS 200 // Atraso de debounce de 200 milissegundos
 
 // Variável para armazenar a última vez que um botão foi pressionado
-volatile last_press_time = 0;
+volatile int last_press_time = 0;
 
 // Callbacks dos botões
 void btn_callback(uint gpio, uint32_t events) {
