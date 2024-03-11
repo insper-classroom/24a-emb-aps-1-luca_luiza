@@ -145,7 +145,7 @@ int main() {
                     else if (PRESSED_COLOR != cor && PRESSED_COLOR != 'S') {
                         inGame = 0; // Sai do loop
                         i = rodada; // Sai do loop
-                        loopJogo = 0;
+                        loopJogo = 0; // Com esse flag de finalização do loop ele passa no actions, no entanto, o jogo como gostariamos fica em loop infinito esperando a proxima partida
                     }
                     // Reseta as flags para a próxima iteração
                     PRESSED_B = 0;
